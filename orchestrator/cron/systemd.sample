@@ -1,0 +1,41 @@
+# =============================================================================
+# systemd timer alternative to cron.
+#
+# Place these two files in /etc/systemd/system/ and run:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now fdi-agent.timer
+#   sudo systemctl status fdi-agent.timer
+#
+# Inspect history with:  journalctl -u fdi-agent.service
+# =============================================================================
+
+# ---- /etc/systemd/system/fdi-agent.service ---------------------------------
+[Unit]
+Description=FDI Agent — daily orchestrator
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=fdi-agent
+Group=fdi-agent
+WorkingDirectory=/opt/fdi-agent
+EnvironmentFile=/opt/fdi-agent/.env
+ExecStart=/opt/fdi-agent/.venv/bin/python -m orchestrator.daily_run
+StandardOutput=append:/var/log/fdi-agent/daily.log
+StandardError=append:/var/log/fdi-agent/daily.log
+TimeoutStartSec=2h
+Nice=10
+
+# ---- /etc/systemd/system/fdi-agent.timer -----------------------------------
+[Unit]
+Description=Run fdi-agent daily at 02:00
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+RandomizedDelaySec=15min
+Persistent=true   # catch up on missed runs after a reboot
+Unit=fdi-agent.service
+
+[Install]
+WantedBy=timers.target

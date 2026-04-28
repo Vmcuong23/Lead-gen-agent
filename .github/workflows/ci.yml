@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Syntax check
+        run: |
+          python -m compileall -q agent1_schema agent2_fdi_scraper \
+              agent3_people_discovery shared interface orchestrator
+
+      - name: Run unit tests (deterministic logic only)
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          pytest -q \
+            shared/tests \
+            agent2_fdi_scraper/tests \
+            -W ignore::DeprecationWarning

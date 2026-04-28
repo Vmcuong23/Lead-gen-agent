@@ -1,0 +1,17 @@
+[project]
+name = "agent1-schema"
+version = "0.1.0"
+description = "FDI Agent — shared schema and ORM models"
+requires-python = ">=3.11"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["models"]

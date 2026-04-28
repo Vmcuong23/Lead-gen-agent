@@ -1,0 +1,21 @@
+[project]
+name = "fdi-agent-shared"
+version = "0.1.0"
+description = "FDI Agent — shared utilities (embeddings, ICP scoring)"
+requires-python = ">=3.11"
+dependencies = [
+    "agent1-schema",
+    "pyyaml>=6.0",
+    "sqlalchemy>=2.0",
+]
+
+[project.optional-dependencies]
+voyage = ["voyageai>=0.2"]
+local_embed = ["sentence-transformers>=2.7"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["embeddings.py", "icp.py", "icp.yaml"]

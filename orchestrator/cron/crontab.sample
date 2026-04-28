@@ -1,0 +1,21 @@
+# =============================================================================
+# fdi-agent — daily orchestrator cron
+# =============================================================================
+# Install with `crontab -e` and paste ONE of the lines below, then save.
+#
+# Verify with `crontab -l`
+# Logs land in /var/log/fdi-agent/daily-YYYYMMDD.log
+# =============================================================================
+
+# Recommended: 02:00 server-local time, sufficient quiet hours.
+# Adjust PROJECT_DIR if you installed somewhere other than /opt/fdi-agent.
+0 2 * * * PROJECT_DIR=/opt/fdi-agent /opt/fdi-agent/orchestrator/cron/run-daily.sh
+
+# Backfill mode — run every 6 hours during the first ~2 weeks while you
+# work through 5 years of FIA bulletins. Once company count > 1500 the
+# orchestrator auto-switches to steady-state, so this becomes overkill.
+# 0 */6 * * * PROJECT_DIR=/opt/fdi-agent /opt/fdi-agent/orchestrator/cron/run-daily.sh
+
+# Lightweight hourly people-discovery only (skip Agent 2 fetch).
+# Useful in steady-state once your company list is stable.
+# 0 * * * * cd /opt/fdi-agent && .venv/bin/python -m agent3_people_discovery.run --limit 5 --verify-emails 2>&1 | logger -t fdi-agent

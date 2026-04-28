@@ -1,0 +1,59 @@
+# Default ICP config — copy to icp.yaml and tune for your use case.
+# The shipped example targets manufacturers in Vietnam with factory plants
+# established in the last 5 years, prioritizing East-Asian / European parents.
+
+must_have:
+  vn_province: any                       # 'any' = any province acceptable
+  first_licensed_within_years: 5
+
+weights:
+  recency: 25
+  investment: 20
+  geography: 10
+  industry: 20
+  origin: 10
+  tech_stack: 10
+  signals: 15
+  has_decisionmkr: 10
+
+target_industries:
+  - Electronics manufacturing
+  - Semiconductor
+  - Automotive
+  - Pharmaceutical
+  - Food processing
+  - Textile
+  - Machinery
+  - Solar
+  - Battery
+
+target_countries: [KR, JP, DE, US, SG, TW, TH, CN, HK, FR, NL]
+
+target_provinces:
+  - Bắc Ninh
+  - Bình Dương
+  - Đồng Nai
+  - Hải Phòng
+  - Long An
+  - Hưng Yên
+  - Hà Nội
+  - Hồ Chí Minh
+  - Quảng Ninh
+  - Thái Nguyên
+  - Bắc Giang
+
+target_tech:
+  - sap_ecc
+  - sap_s4hana
+  - oracle_ebs
+  - microsoft_dynamics
+  - infor
+
+investment_tiers:
+  - {min_usd: 100000000, score: 20}
+  - {min_usd: 50000000,  score: 16}
+  - {min_usd: 20000000,  score: 12}
+  - {min_usd: 5000000,   score: 6}
+  - {min_usd: 0,         score: 2}
+
+recency_window_years: 5

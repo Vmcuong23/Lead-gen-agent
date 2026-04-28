@@ -1,0 +1,106 @@
+name: Daily orchestrator
+
+# Runs the FDI agent pipeline once per day at 02:00 Vietnam time.
+# GitHub Actions cron uses UTC, so 02:00 ICT = 19:00 UTC the previous day.
+#
+# Free tier limits to be aware of:
+#   - Public repos: unlimited Actions minutes
+#   - Private repos: 2,000 minutes/month free
+#   - 6-hour max per job (we cap at 90 min)
+#   - Schedules can be skipped if GitHub Actions is under heavy load
+#
+# Manual trigger: GitHub UI → Actions tab → "Daily orchestrator" → "Run workflow"
+
+on:
+  schedule:
+    - cron: '0 19 * * *'    # 19:00 UTC daily = 02:00 ICT next day
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Override mode (auto-detect if empty)'
+        required: false
+        type: choice
+        options: ['', 'backfill', 'steady_state']
+      company_target:
+        description: 'New companies target (default: 50)'
+        required: false
+        default: '50'
+      people_target:
+        description: 'People-discovery target (default: 100)'
+        required: false
+        default: '100'
+
+permissions:
+  contents: read
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: orchestrator-${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Ensure each package's models are importable as a top-level module
+          pip install -e ./agent1_schema -e ./shared || true
+
+      - name: Run database migrations (idempotent)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # Strip +psycopg suffix for psql compatibility
+          PSQL_URL="${DATABASE_URL/+psycopg/}"
+          # The migration is wrapped in CREATE ... IF NOT EXISTS, safe to re-run
+          sudo apt-get install -y postgresql-client
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f agent1_schema/migrations/001_init.sql
+
+      - name: Run daily orchestrator
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-4-5' }}
+          COMPANIES_DAILY_TARGET: ${{ inputs.company_target || '50' }}
+          PEOPLE_DAILY_TARGET: ${{ inputs.people_target || '100' }}
+          EMAIL_VERIFY_DAILY_TARGET: ${{ vars.EMAIL_VERIFY_DAILY_TARGET || '100' }}
+          BACKFILL_THRESHOLD: ${{ vars.BACKFILL_THRESHOLD || '1500' }}
+          PYTHONPATH: ${{ github.workspace }}
+          LOG_LEVEL: INFO
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.mode }}" ]; then
+            ARGS="--mode ${{ inputs.mode }}"
+          fi
+          python -m orchestrator.daily_run $ARGS
+
+      - name: Upload run log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-log-${{ github.run_id }}
+          path: run_log.jsonl
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Notify on failure (Slack)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"⚠️ Lead-gen-agent daily orchestrator failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL"

@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: fdi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: fdi_agent
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./agent1_schema/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fdi -d fdi_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dashboard:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://fdi:${POSTGRES_PASSWORD:-changeme}@postgres:5432/fdi_agent
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+
+  cron:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://fdi:${POSTGRES_PASSWORD:-changeme}@postgres:5432/fdi_agent
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      COMPANIES_DAILY_TARGET: ${COMPANIES_DAILY_TARGET:-50}
+      PEOPLE_DAILY_TARGET: ${PEOPLE_DAILY_TARGET:-100}
+    # Run once a day at 02:00 inside the container
+    command: >
+      sh -c "while true; do
+        sleep $$(( ($$(date -d 'tomorrow 02:00' +%s) - $$(date +%s)) ));
+        python -m orchestrator.daily_run || true;
+      done"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
