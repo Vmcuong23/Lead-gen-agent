@@ -1,0 +1,20 @@
+# Streamlit Cloud reads this file at the repo root.
+# Local dev: prefer the per-package pyproject.toml installs.
+
+streamlit>=1.40
+pandas>=2.0
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+pgvector>=0.3
+pydantic>=2.7
+pyyaml>=6.0
+
+# Agent 2 / Agent 3 deps
+anthropic>=0.40
+httpx>=0.27
+selectolax>=0.3.21
+dnspython>=2.6
+
+# Optional embedding backends (Streamlit Cloud has limited disk; pick one)
+# voyageai>=0.2          # cheap API; recommended on Cloud
+# sentence-transformers>=2.7  # local; needs ~2GB disk for the model
