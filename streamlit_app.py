@@ -1,24 +1,24 @@
 """
 Streamlit Cloud entry point.
 
-Streamlit Cloud, Hugging Face Spaces, and most managed Streamlit hosts
-look for `streamlit_app.py` at the repo root. This file is a thin shim
-that just delegates to interface/dashboard.py.
+Streamlit Cloud and most managed Streamlit hosts look for `streamlit_app.py`
+at the repo root and `streamlit run` it. This file:
+
+  1. Ensures the repo root is on sys.path so `from interface import ...`,
+     `from agent1_schema import ...`, etc. work without a pip install.
+  2. Delegates execution to interface/dashboard.py.
 
 Local development: `streamlit run streamlit_app.py`
 """
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).parent
-sys.path.insert(0, str(ROOT))
+# The repo root is this file's directory. Putting it on sys.path lets
+# `from interface import dashboard` resolve to interface/dashboard.py.
+ROOT = Path(__file__).parent.resolve()
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-# Make sub-packages importable as top-level
-for pkg in ["agent1_schema", "agent2_fdi_scraper",
-             "agent3_people_discovery", "shared", "interface"]:
-    p = ROOT / pkg
-    if p.is_dir() and str(p) not in sys.path:
-        sys.path.insert(0, str(p))
-
-# Run the dashboard — the import itself is the Streamlit entry point
+# Importing the dashboard module is what renders the page — Streamlit
+# scripts execute top-to-bottom, and dashboard.py contains the st.* calls.
 from interface import dashboard  # noqa: F401, E402
